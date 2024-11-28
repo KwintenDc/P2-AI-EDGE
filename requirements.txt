@@ -5,3 +5,4 @@ openvino
 numpy
 matplotlib
 onnx
+opencv-python
