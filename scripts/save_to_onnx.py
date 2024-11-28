@@ -12,7 +12,7 @@ model = SegformerForSemanticSegmentation.from_pretrained("./local_segformer_mode
 model.eval()
 
 # Example image input (use the same image preprocessing as the original)
-image_path = "images/sidewalk3.jpg"
+image_path = "scripts/images/sidewalk3.jpg"
 image = Image.open(image_path)
 # Preprocesses the image into a format the model expects (tensor of shape [batch_size, channels, height, width]).
 inputs = processor(images=image, return_tensors="pt")

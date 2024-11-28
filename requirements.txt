@@ -4,3 +4,4 @@ transformers
 openvino
 numpy
 matplotlib
+onnx

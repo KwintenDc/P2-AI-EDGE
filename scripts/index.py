@@ -8,7 +8,7 @@ from transformers import AutoImageProcessor
 processor = AutoImageProcessor.from_pretrained("./local_segformer_model")
 
 # Load the image
-image_path = "images/sidewalk3.jpg"
+image_path = "scripts/images/sidewalk3.jpg"
 image = Image.open(image_path)
 
 # Preprocess the image
