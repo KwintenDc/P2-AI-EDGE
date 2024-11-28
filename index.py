@@ -1,7 +1,4 @@
-# This script uses the ONNX model to perform inference on an input image, processes the output to generate a segmentation map,
-# and visualizes the results with an overlay on the original image.
-
-import onnxruntime as ort
+from openvino.runtime import Core
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -15,27 +12,29 @@ image_path = "images/sidewalk3.jpg"
 image = Image.open(image_path)
 
 # Preprocess the image
-inputs = processor(images=image, return_tensors="np")  # Use NumPy arrays for ONNX runtime
+inputs = processor(images=image, return_tensors="np")  # Use NumPy arrays for OpenVINO runtime
 
-print(ort.get_available_providers())
-# Specify that ONNX Runtime should use the TensorRT execution provider
-providers = ['DNNLExecutionProvider', 'CPUExecutionProvider']
+# Load OpenVINO Core
+core = Core()
+print("Available devices:", core.available_devices)  # This should list devices, including "CPU" and possibly "GPU"
+print("OpenVINO CPU version:", core.get_versions("CPU"))  # Get the version information for the GPU plugin
 
-# Loads the ONNX model and specifies the inference backends (e.g., CPU or DNNL).
-onnx_session = ort.InferenceSession("segformer_model.onnx", providers=providers)
+# Load the ONNX model into OpenVINO
+model_path = "segformer_model.onnx"
+compiled_model = core.compile_model(model_path, device_name='CPU')  # Use "CPU" if GPU is not available
 
 # Prepare the input dictionary
-input_name = onnx_session.get_inputs()[0].name
+input_name = compiled_model.input(0).get_names()  # Get the input name
 input_data = inputs['pixel_values']  # The preprocessed input image tensor
 
-# Run inference
-outputs = onnx_session.run(None, {input_name: input_data})
+# Perform inference
+output_data = compiled_model([input_data])
 
 # Get the logits (predictions)
-logits = outputs[0]  # shape: (batch_size, num_labels, height/4, width/4)
+logits = output_data[0]  # Shape: (batch_size, num_labels, height/4, width/4)
 
-# Converts logits into a segmentation map by finding the highest-scoring class for each pixel.
-segmentation_map =np.argmax(logits, axis=1).squeeze()  # Shape: [height, width]
+# Convert logits into a segmentation map by finding the highest-scoring class for each pixel.
+segmentation_map = np.argmax(logits, axis=1).squeeze()  # Shape: [height, width]
 
 # Convert segmentation_map to uint8 for PIL compatibility
 segmentation_map = segmentation_map.astype(np.uint8)
