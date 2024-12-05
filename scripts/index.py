@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from transformers import AutoImageProcessor
 
 # Load the processor
-processor = AutoImageProcessor.from_pretrained("./scripts/local_segformer_model")
+processor = AutoImageProcessor.from_pretrained("./local_segformer_model")
 
 # Load the image
 image_path = "scripts/images/sidewalk3.jpg"
@@ -21,7 +21,7 @@ print("Available devices:", core.available_devices)
 print("OpenVINO CPU version:", core.get_versions("CPU"))
 
 # Load the ONNX model into OpenVINO
-model_path = "scripts/segformer_model.onnx"
+model_path = "segformer_model.onnx"
 compiled_model = core.compile_model(model_path, device_name='CPU')
 
 # Prepare the input
