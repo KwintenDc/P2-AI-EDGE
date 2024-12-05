@@ -60,18 +60,23 @@ while True:
     # Convert the PIL image to a NumPy array
     image_np = np.array(image_pil)
 
-    # Create a colormap using matplotlib and apply it to the segmentation map
-    cmap = plt.get_cmap("jet")  # Use matplotlib's jet colormap
-    segmentation_map_colored = cmap(segmentation_map_resized)  # Apply colormap
+    # Initialize an empty image for coloring the segmentation map
+    colored_segmentation_map = np.zeros_like(image_np)
 
-    # Convert to OpenCV-compatible format (Remove alpha channel and convert to uint8)
-    segmentation_map_colored = (segmentation_map_colored[:, :, :3] * 255).astype(np.uint8)
+    # Define the class ID for sidewalk (you need to know the correct ID from your model)
+    sidewalk_class_id = 2  # Replace this with the correct class ID for sidewalk
 
-    # Overlay the segmentation map on the original image using OpenCV
-    overlayed_image = cv2.addWeighted(image_np, 0.5, segmentation_map_colored, 0.5, 0)
+    # Apply red color (255, 0, 0) to the sidewalk pixels
+    colored_segmentation_map[segmentation_map_resized == sidewalk_class_id] = [0, 0, 255]  # Red color
+
+    # Optionally: Adjust color brightness for other parts of the map (for example, darken the background)
+    # You can apply other colors for different classes if needed
+
+    # Create an overlay with the original image and the colored segmentation map
+    overlayed_image = cv2.addWeighted(image_np, 0.7, colored_segmentation_map, 0.3, 0)
 
     # Visualize the segmentation map and overlay with OpenCV
-    cv2.imshow("Segmentation Map", segmentation_map_colored)
+    cv2.imshow("Colored Segmentation Map", colored_segmentation_map)
     cv2.imshow("Overlayed Segmentation", overlayed_image)
 
     # Wait for 1 ms and check if the user pressed the 'q' key to exit
