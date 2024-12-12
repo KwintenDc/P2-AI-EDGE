@@ -17,8 +17,10 @@ print("OpenVINO CPU version:", core.get_versions("CPU"))
 model_path = "segformer_model.onnx"
 compiled_model = core.compile_model(model_path, device_name='CPU')
 
+video_path = "scripts/images/sidewalk.mp4"
+
 # Start capturing from the camera (camera index 0 by default)
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(video_path)
 
 if not cap.isOpened():
     print("Error: Unable to access the camera.")
