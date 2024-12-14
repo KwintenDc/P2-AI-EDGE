@@ -15,9 +15,11 @@ This repository provides a complete pipeline for semantic segmentation using the
 Ensure you have the following packages installed: 
 - `transformers`
 - `torch`
-- `onnxruntime`
+- `onnx`
 - `Pillow`
 - `matplotlib`
 - `numpy`
+- `openvino`
+- `opencv-python`
 
-You can install these by installing the requirements.txt, `pip install requirements.txt`.
+You can install these by installing the requirements.txt, `pip install -r requirements.txt`.
