@@ -1,61 +1,86 @@
 from openvino.runtime import Core
 import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
+import cv2
 from transformers import AutoImageProcessor
+import time  # For calculating FPS
 
-# Load the processor (ONNX runtime doesn't require model loading from Hugging Face, only the processor)
+# Load the processor
 processor = AutoImageProcessor.from_pretrained("./local_segformer_model")
-
-# Load the image
-image_path = "images/sidewalk3.jpg"
-image = Image.open(image_path)
-
-# Preprocess the image
-inputs = processor(images=image, return_tensors="np")  # Use NumPy arrays for OpenVINO runtime
 
 # Load OpenVINO Core
 core = Core()
-print("Available devices:", core.available_devices)  # This should list devices, including "CPU" and possibly "GPU"
-print("OpenVINO CPU version:", core.get_versions("CPU"))  # Get the version information for the GPU plugin
+print("Available devices:", core.available_devices)  
+print("OpenVINO CPU version:", core.get_versions("CPU"))
 
 # Load the ONNX model into OpenVINO
 model_path = "segformer_model.onnx"
-compiled_model = core.compile_model(model_path, device_name='CPU')  # Use "CPU" if GPU is not available
+compiled_model = core.compile_model(model_path, device_name='CPU')
 
-# Prepare the input dictionary
-input_name = compiled_model.input(0).get_names()  # Get the input name
-input_data = inputs['pixel_values']  # The preprocessed input image tensor
+video_path = "images/sidewalk.mp4"
 
-# Perform inference
-output_data = compiled_model([input_data])
+# Start capturing from the video
+cap = cv2.VideoCapture(video_path)
 
-# Get the logits (predictions)
-logits = output_data[0]  # Shape: (batch_size, num_labels, height/4, width/4)
+if not cap.isOpened():
+    print("Error: Unable to access the video.")
+    exit()
 
-# Convert logits into a segmentation map by finding the highest-scoring class for each pixel.
-segmentation_map = np.argmax(logits, axis=1).squeeze()  # Shape: [height, width]
+# Initialize variables for FPS calculation
+prev_time = time.time()
 
-# Convert segmentation_map to uint8 for PIL compatibility
-segmentation_map = segmentation_map.astype(np.uint8)
+while True:
+    # Capture a frame from the video
+    ret, frame = cap.read()
+    if not ret:
+        print("End of video or failed to capture frame.")
+        break
 
-# Resize segmentation map to match the original image size
-segmentation_map_resized = np.array(Image.fromarray(segmentation_map).resize(image.size, Image.NEAREST))
+    # Resize the frame to a smaller size for better performance (e.g., 160x120)
+    resized_frame = cv2.resize(frame, (160, 120))
 
-# Step 5: Visualize the results
-plt.figure(figsize=(10, 5))
+    # Convert the resized frame to RGB (OpenCV uses BGR by default)
+    image = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
+    inputs = processor(images=image, return_tensors="np")
 
-# Segmentation map
-plt.subplot(1, 2, 1)
-plt.imshow(segmentation_map_resized, cmap="jet")  # Using a colormap for better visualization
-plt.title("Segmentation Map")
-plt.axis("off")
+    # Convert logits to a segmentation map
+    segmentation_map = np.argmax(compiled_model([inputs['pixel_values']])[0], axis=1).squeeze()
+    segmentation_map_resized = cv2.resize(segmentation_map, (frame.shape[1], frame.shape[0]), interpolation=cv2.INTER_NEAREST)
 
-# Overlayed segmentation on original image
-plt.subplot(1, 2, 2)
-plt.imshow(image)
-plt.imshow(segmentation_map_resized, cmap="jet", alpha=0.5)  # Overlay with transparency
-plt.title("Overlayed Segmentation")
-plt.axis("off")
+    # Create a coloured segmentation map
+    colored_segmentation_map = np.zeros_like(frame)
+    sidewalk_class_id = 2  # Define the class ID for sidewalk
+    colored_segmentation_map[segmentation_map_resized == sidewalk_class_id] = [0, 0, 255]
 
-plt.show()
+    # Create an overlayed image
+    overlayed_image = cv2.addWeighted(frame, 0.7, colored_segmentation_map, 0.3, 0)
+
+    # Scale factor (e.g., 50% of the original size)
+    scale_percent = 50
+    new_width = int(overlayed_image.shape[1] * scale_percent / 100)
+    new_height = int(overlayed_image.shape[0] * scale_percent / 100)
+    new_dim = (new_width, new_height)
+
+    # Resize the images
+    scaled_colored_segmentation_map = cv2.resize(colored_segmentation_map, new_dim, interpolation=cv2.INTER_NEAREST)
+    scaled_overlayed_image = cv2.resize(overlayed_image, new_dim, interpolation=cv2.INTER_LINEAR)
+
+    # Calculate FPS
+    current_time = time.time()
+    fps = 1 / (current_time - prev_time)
+    prev_time = current_time
+
+    # Add FPS text to the overlayed image
+    fps_text = f"FPS: {fps:.2f}"
+    cv2.putText(scaled_overlayed_image, fps_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+    # Visualize the scaled overlay with FPS
+    cv2.imshow("Scaled Colored Segmentation Map", scaled_colored_segmentation_map)
+    cv2.imshow("Scaled Overlayed Segmentation with FPS", scaled_overlayed_image)
+
+    # Wait for 1 ms and check if the user pressed the 'q' key to exit
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Release the video capture and close any OpenCV windows
+cap.release()
+cv2.destroyAllWindows()
